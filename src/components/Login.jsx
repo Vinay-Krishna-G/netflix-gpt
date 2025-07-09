@@ -1,10 +1,21 @@
 import React from "react";
 import Header from "./Header";
 import { checkValidData } from "../utils/validate";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  updateProfile,
+} from "firebase/auth";
+import { auth } from "../utils/firebase"; // Adjust the import path as necessary
+import { useNavigate } from "react-router-dom";
+import { useDispatch } from "react-redux";
+import { addUser } from "../utils/userSlice";
 
 const Login = () => {
   const [isSignIn, setSignIn] = React.useState(true);
   const [errorMessage, setErrorMessage] = React.useState(null);
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
 
   const email = React.useRef(null);
   const password = React.useRef(null);
@@ -24,6 +35,64 @@ const Login = () => {
       );
     }
     setErrorMessage(message);
+
+    if (!message) {
+      if (isSignIn) {
+        // Handle sign-in logic here
+
+        signInWithEmailAndPassword(
+          auth,
+          email.current.value,
+          password.current.value
+        )
+          .then((userCredential) => {
+            // Signed in
+            const user = userCredential.user;
+            console.log("User signed in:", user);
+            navigate("/browse"); // Navigate to the browse page after successful sign-in
+          })
+          .catch((error) => {
+            const errorCode = error.code;
+            const errorMessage = error.message;
+            setErrorMessage(errorCode + ": " + errorMessage);
+          });
+
+        console.log("Signing in with", email.current.value);
+      } else {
+        // signUp logic
+
+        createUserWithEmailAndPassword(
+          auth,
+          email.current.value,
+          password.current.value
+        )
+          .then((userCredential) => {
+            // Signed up
+            const user = userCredential.user;
+
+            updateProfile(user, {
+              displayName: `${firstName.current.value} ${lastName.current.value}`,
+            })
+              .then(() => {
+                const { uid, email, displayName } = auth.currentUser;
+                dispatch(
+                  addUser({ uid: uid, email: email, displayName: displayName })
+                );
+                navigate("/browse"); // Profile updated successfully
+              })
+              .catch((error) => {
+                setErrorMessage(error.message);
+              });
+            navigate("/browse"); // Navigate to the browse page after successful sign-up
+          })
+          .catch((error) => {
+            const errorCode = error.code;
+            const errorMessage = error.message;
+            setErrorMessage(errorCode + ": " + errorMessage);
+            // ..
+          });
+      }
+    }
   };
 
   const toggleForm = () => {
